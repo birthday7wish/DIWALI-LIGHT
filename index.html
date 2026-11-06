@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bluetooth LED Chaser</title>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --primary: #3b82f6; --accent: #10b981; --text: #f8fafc; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+  .container { max-width: 600px; width: 100%; }
+  h2 { text-align: center; font-weight: 300; letter-spacing: 2px; margin-bottom: 20px; }
+  
+  .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+  .card h3 { margin-top: 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } /* Updated for 6 channels */
+  
+  button { padding: 12px; border: none; border-radius: 8px; background: #334155; color: white; cursor: pointer; transition: 0.2s; font-weight: 600; width: 100%; }
+  button:hover { filter: brightness(1.2); }
+  button:active { transform: scale(0.96); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .btn-green { background: var(--accent); }
+  .btn-red { background: #ef4444; }
+  .btn-blue { background: var(--primary); font-size: 16px; padding: 15px; }
+  .active-chan { border: 2px solid var(--accent); background: #064e3b; }
+  
+  input[type="range"] { width: 100%; margin-top: 15px; accent-color: var(--primary); }
+  #status-indicator { text-align: center; padding: 10px; font-weight: bold; border-radius: 8px; margin-top: 15px; background: #334155; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>⚡ BLE NEO CHASER (6-CH)</h2>
+  
+  <div class="card">
+    <button class="btn-blue" id="connectBtn" onclick="connectBLE()">Pair Bluetooth ESP32</button>
+    <div id="status-indicator">Disconnected</div>
+  </div>
+
+  <div class="card">
+    <h3>Quick Actions</h3>
+    <div class="grid-2">
+      <button class="btn-green ble-btn" onclick="sendCommand('A,1')" disabled>POWER ALL ON</button>
+      <button class="btn-red ble-btn" onclick="sendCommand('A,0')" disabled>POWER ALL OFF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Manual Channels</h3>
+    <div class="grid-3" id="channel-grid"></div>
+  </div>
+
+  <div class="card">
+    <h3>Effects Engine</h3>
+    <div class="grid-2">
+      <button class="ble-btn" onclick="sendCommand('M,forward')" disabled>Forward</button>
+      <button class="ble-btn" onclick="sendCommand('M,reverse')" disabled>Reverse</button>
+      <button class="ble-btn" onclick="sendCommand('M,alternate')" disabled>Alternate</button>
+      <button class="ble-btn" onclick="sendCommand('M,bounce')" disabled>Bounce</button>
+      <button class="ble-btn" onclick="sendCommand('M,fill')" disabled>Fill</button>
+      <button class="ble-btn" onclick="sendCommand('M,random')" disabled>Random</button>
+    </div>
+    <h3 style="margin-top:20px;">Speed: <span id="speed-label">700</span>ms</h3>
+    <input type="range" class="ble-btn" min="100" max="2000" step="50" value="700" id="speedSlider" disabled onchange="sendCommand('V,'+this.value)">
+  </div>
+</div>
+
+<script>
+  const serviceUuid = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+  const charUuid = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+  
+  let bleDevice;
+  let bleCharacteristic;
+  let states = [0,0,0,0,0,0]; // Updated array size
+
+  function initUI() {
+    let grid = document.getElementById('channel-grid');
+    grid.innerHTML = '';
+    for(let i=0; i<6; i++) { // Loop 6 times
+      grid.innerHTML += `<button id="ch${i}" class="ble-btn" disabled onclick="toggleChannel(${i})">CH ${i+1}</button>`;
+    }
+  }
+
+  async function connectBLE() {
+    try {
+      document.getElementById('status-indicator').innerText = "Requesting Bluetooth...";
+      bleDevice = await navigator.bluetooth.requestDevice({
+        filters: [{ name: 'ESP32_LED_CHASER' }],
+        optionalServices: [serviceUuid]
+      });
+
+      bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+      document.getElementById('status-indicator').innerText = "Connecting to GATT Server...";
+      const server = await bleDevice.gatt.connect();
+
+      document.getElementById('status-indicator').innerText = "Getting Service...";
+      const service = await server.getPrimaryService(serviceUuid);
+
+      document.getElementById('status-indicator').innerText = "Getting Characteristic...";
+      bleCharacteristic = await service.getCharacteristic(charUuid);
+
+      bleCharacteristic.startNotifications();
+      bleCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+      document.getElementById('status-indicator').innerText = "Connected!";
+      document.getElementById('status-indicator').style.background = "#064e3b";
+      document.getElementById('connectBtn').innerText = "Disconnect";
+      document.getElementById('connectBtn').onclick = disconnectBLE;
+
+      document.querySelectorAll('.ble-btn').forEach(btn => btn.disabled = false);
+      sendCommand('R'); 
+
+    } catch (error) {
+      console.error(error);
+      document.getElementById('status-indicator').innerText = "Connection Failed: " + error.message;
+      document.getElementById('status-indicator').style.background = "#7f1d1d";
+    }
+  }
+
+  function disconnectBLE() {
+    if (!bleDevice) return;
+    bleDevice.gatt.disconnect();
+  }
+
+  function onDisconnected() {
+    document.getElementById('status-indicator').innerText = "Disconnected";
+    document.getElementById('status-indicator').style.background = "#334155";
+    document.getElementById('connectBtn').innerText = "Pair Bluetooth ESP32";
+    document.getElementById('connectBtn').onclick = connectBLE;
+    document.querySelectorAll('.ble-btn').forEach(btn => btn.disabled = true);
+  }
+
+  async function sendCommand(cmd) {
+    if (!bleCharacteristic) return;
+    try {
+      const encoder = new TextEncoder();
+      await bleCharacteristic.writeValue(encoder.encode(cmd));
+    } catch (error) {
+      console.error("Write error: ", error);
+    }
+  }
+
+  function handleNotifications(event) {
+    const decoder = new TextDecoder();
+    const value = decoder.decode(event.target.value);
+    try {
+      const data = JSON.parse(value);
+      updateDashboard(data);
+    } catch (e) {
+      console.error("Invalid JSON received: ", value);
+    }
+  }
+
+  function updateDashboard(data) {
+    let binStr = data.c;
+    for(let i=0; i<6; i++) { // Loop 6 times
+      states[i] = parseInt(binStr.charAt(i));
+      let btn = document.getElementById(`ch${i}`);
+      if(states[i] === 1) {
+        btn.classList.add('active-chan');
+      } else {
+        btn.classList.remove('active-chan');
+      }
+    }
+    
+    document.getElementById('speed-label').innerText = data.s;
+    document.getElementById('speedSlider').value = data.s;
+    document.getElementById('status-indicator').innerText = "Connected - Mode: " + data.m.toUpperCase();
+  }
+
+  function toggleChannel(i) {
+    let newState = states[i] === 1 ? 0 : 1;
+    sendCommand(`S,${i},${newState}`);
+  }
+
+  initUI();
+</script>
+</body>
+</html>
