@@ -3,181 +3,186 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bluetooth LED Chaser</title>
+<title>Ultimate 6-CH Chaser</title>
 <style>
   :root { --bg: #0f172a; --card: #1e293b; --primary: #3b82f6; --accent: #10b981; --text: #f8fafc; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
   .container { max-width: 600px; width: 100%; }
-  h2 { text-align: center; font-weight: 300; letter-spacing: 2px; margin-bottom: 20px; }
-  
-  .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
-  .card h3 { margin-top: 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-  
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; } /* Updated for 6 channels */
-  
-  button { padding: 12px; border: none; border-radius: 8px; background: #334155; color: white; cursor: pointer; transition: 0.2s; font-weight: 600; width: 100%; }
-  button:hover { filter: brightness(1.2); }
+  .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom:10px; }
+  button { padding: 12px; border: none; border-radius: 8px; background: #334155; color: white; cursor: pointer; font-weight: 600; width: 100%; }
   button:active { transform: scale(0.96); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  
+  .btn-blue { background: var(--primary); }
   .btn-green { background: var(--accent); }
   .btn-red { background: #ef4444; }
-  .btn-blue { background: var(--primary); font-size: 16px; padding: 15px; }
-  .active-chan { border: 2px solid var(--accent); background: #064e3b; }
-  
-  input[type="range"] { width: 100%; margin-top: 15px; accent-color: var(--primary); }
-  #status-indicator { text-align: center; padding: 10px; font-weight: bold; border-radius: 8px; margin-top: 15px; background: #334155; }
+  .btn-purple { background: #8b5cf6; }
+  .btn-yellow { background: #eab308; color: #000; }
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+  label { font-size: 12px; color: #94a3b8; text-transform: uppercase; }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h2>⚡ BLE NEO CHASER (6-CH)</h2>
-  
-  <div class="card">
-    <button class="btn-blue" id="connectBtn" onclick="connectBLE()">Pair Bluetooth ESP32</button>
-    <div id="status-indicator">Disconnected</div>
+  <div class="card" style="text-align: center;">
+    <h2>⚡ PRO CHASER (6-CH)</h2>
+    <button class="btn-blue" id="connectBtn" onclick="connectBLE()">PAIR BLUETOOTH</button>
   </div>
 
+  <!-- Manual Control & Sleep Timer -->
   <div class="card">
-    <h3>Quick Actions</h3>
     <div class="grid-2">
-      <button class="btn-green ble-btn" onclick="sendCommand('A,1')" disabled>POWER ALL ON</button>
-      <button class="btn-red ble-btn" onclick="sendCommand('A,0')" disabled>POWER ALL OFF</button>
+      <button class="btn-green" onclick="sendCmd('A,1')">ALL ON</button>
+      <button class="btn-red" onclick="sendCmd('A,0')">ALL OFF</button>
+    </div>
+    <div class="grid-3" style="margin-top: 10px;">
+      <button onclick="sendCmd('S,0,1')">CH 1</button>
+      <button onclick="sendCmd('S,1,1')">CH 2</button>
+      <button onclick="sendCmd('S,2,1')">CH 3</button>
+      <button onclick="sendCmd('S,3,1')">CH 4</button>
+      <button onclick="sendCmd('S,4,1')">CH 5</button>
+      <button onclick="sendCmd('S,5,1')">CH 6</button>
+    </div>
+    <div class="grid-2">
+      <button onclick="sendCmd('T,900')">⏱ Sleep 15m</button>
+      <button onclick="sendCmd('T,0')">⏱ Cancel Timer</button>
     </div>
   </div>
 
+  <!-- Automation & FX Engine -->
   <div class="card">
-    <h3>Manual Channels</h3>
-    <div class="grid-3" id="channel-grid"></div>
+    <button class="btn-purple" onclick="sendCmd('D,1')" style="margin-bottom:10px;">🎧 AUTO-DJ (Auto Playlist)</button>
+    <div class="grid-2">
+      <button onclick="sendCmd('D,0'); sendCmd('M,forward')">Forward</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,bounce')">Bounce</button>
+    </div>
+    
+    <label>Speed (BPM/Delay)</label>
+    <div style="display:flex; gap:10px;">
+      <input type="range" min="50" max="1500" value="700" onchange="sendCmd('V,'+this.value)">
+      <button class="btn-yellow" style="width:80px;" onclick="tapBeat()">TAP</button>
+    </div>
+
+    <label>Pulse Width (Strobe Effect)</label>
+    <input type="range" min="5" max="100" value="100" onchange="sendCmd('P,'+this.value)">
   </div>
 
+  <!-- Advanced External Sync -->
   <div class="card">
-    <h3>Effects Engine</h3>
-    <div class="grid-2">
-      <button class="ble-btn" onclick="sendCommand('M,forward')" disabled>Forward</button>
-      <button class="ble-btn" onclick="sendCommand('M,reverse')" disabled>Reverse</button>
-      <button class="ble-btn" onclick="sendCommand('M,alternate')" disabled>Alternate</button>
-      <button class="ble-btn" onclick="sendCommand('M,bounce')" disabled>Bounce</button>
-      <button class="ble-btn" onclick="sendCommand('M,fill')" disabled>Fill</button>
-      <button class="ble-btn" onclick="sendCommand('M,random')" disabled>Random</button>
+    <label>Browser Sync FX (Direct Mode)</label>
+    <div class="grid-2" style="margin-top: 5px;">
+      <button onclick="startMusicSync()">🎵 Mic Sync</button>
+      <button onclick="startAmbilight()">🖥 Screen Sync</button>
     </div>
-    <h3 style="margin-top:20px;">Speed: <span id="speed-label">700</span>ms</h3>
-    <input type="range" class="ble-btn" min="100" max="2000" step="50" value="700" id="speedSlider" disabled onchange="sendCommand('V,'+this.value)">
+    <video id="screenVideo" style="display:none;" autoplay></video>
   </div>
 </div>
 
 <script>
-  const serviceUuid = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-  const charUuid = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+  let bleChar;
   
-  let bleDevice;
-  let bleCharacteristic;
-  let states = [0,0,0,0,0,0]; // Updated array size
-
-  function initUI() {
-    let grid = document.getElementById('channel-grid');
-    grid.innerHTML = '';
-    for(let i=0; i<6; i++) { // Loop 6 times
-      grid.innerHTML += `<button id="ch${i}" class="ble-btn" disabled onclick="toggleChannel(${i})">CH ${i+1}</button>`;
-    }
-  }
-
   async function connectBLE() {
     try {
-      document.getElementById('status-indicator').innerText = "Requesting Bluetooth...";
-      bleDevice = await navigator.bluetooth.requestDevice({
-        filters: [{ name: 'ESP32_LED_CHASER' }],
-        optionalServices: [serviceUuid]
-      });
+      const dev = await navigator.bluetooth.requestDevice({ filters: [{ name: 'ESP32_LED_CHASER' }], optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b'] });
+      const server = await dev.gatt.connect();
+      const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+      bleChar = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
+      document.getElementById('connectBtn').innerText = "CONNECTED";
+      document.getElementById('connectBtn').style.background = "#10b981";
+    } catch(e) { alert("BLE Error: " + e); }
+  }
 
-      bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+  async function sendCmd(cmd) {
+    if(!bleChar) return;
+    stopSync(); 
+    await bleChar.writeValue(new TextEncoder().encode(cmd));
+  }
 
-      document.getElementById('status-indicator').innerText = "Connecting to GATT Server...";
-      const server = await bleDevice.gatt.connect();
-
-      document.getElementById('status-indicator').innerText = "Getting Service...";
-      const service = await server.getPrimaryService(serviceUuid);
-
-      document.getElementById('status-indicator').innerText = "Getting Characteristic...";
-      bleCharacteristic = await service.getCharacteristic(charUuid);
-
-      bleCharacteristic.startNotifications();
-      bleCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
-
-      document.getElementById('status-indicator').innerText = "Connected!";
-      document.getElementById('status-indicator').style.background = "#064e3b";
-      document.getElementById('connectBtn').innerText = "Disconnect";
-      document.getElementById('connectBtn').onclick = disconnectBLE;
-
-      document.querySelectorAll('.ble-btn').forEach(btn => btn.disabled = false);
-      sendCommand('R'); 
-
-    } catch (error) {
-      console.error(error);
-      document.getElementById('status-indicator').innerText = "Connection Failed: " + error.message;
-      document.getElementById('status-indicator').style.background = "#7f1d1d";
+  // --- TAP-TO-BEAT ---
+  let tapTimes = [];
+  function tapBeat() {
+    let now = Date.now();
+    tapTimes.push(now);
+    if(tapTimes.length > 4) tapTimes.shift();
+    if(tapTimes.length === 4) {
+      let delay = (tapTimes[3] - tapTimes[0]) / 3;
+      sendCmd('V,' + Math.round(delay));
     }
   }
 
-  function disconnectBLE() {
-    if (!bleDevice) return;
-    bleDevice.gatt.disconnect();
+  // --- ADVANCED SYNC GLOBALS ---
+  let syncRunning = false;
+  let audioContext, mediaStream;
+  function stopSync() { syncRunning = false; }
+
+  async function sendDirectMask(mask) {
+    if(!bleChar || !syncRunning) return;
+    bleChar.writeValue(new TextEncoder().encode('C,' + mask));
   }
 
-  function onDisconnected() {
-    document.getElementById('status-indicator').innerText = "Disconnected";
-    document.getElementById('status-indicator').style.background = "#334155";
-    document.getElementById('connectBtn').innerText = "Pair Bluetooth ESP32";
-    document.getElementById('connectBtn').onclick = connectBLE;
-    document.querySelectorAll('.ble-btn').forEach(btn => btn.disabled = true);
-  }
-
-  async function sendCommand(cmd) {
-    if (!bleCharacteristic) return;
+  // --- 1. MUSIC SYNC (BROWSER MIC) FOR 6-CH ---
+  async function startMusicSync() {
+    await sendCmd('M,direct'); 
+    syncRunning = true;
     try {
-      const encoder = new TextEncoder();
-      await bleCharacteristic.writeValue(encoder.encode(cmd));
-    } catch (error) {
-      console.error("Write error: ", error);
-    }
-  }
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new AudioContext();
+      let source = audioContext.createMediaStreamSource(mediaStream);
+      let analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      let data = new Uint8Array(analyser.frequencyBinCount);
 
-  function handleNotifications(event) {
-    const decoder = new TextDecoder();
-    const value = decoder.decode(event.target.value);
-    try {
-      const data = JSON.parse(value);
-      updateDashboard(data);
-    } catch (e) {
-      console.error("Invalid JSON received: ", value);
-    }
-  }
-
-  function updateDashboard(data) {
-    let binStr = data.c;
-    for(let i=0; i<6; i++) { // Loop 6 times
-      states[i] = parseInt(binStr.charAt(i));
-      let btn = document.getElementById(`ch${i}`);
-      if(states[i] === 1) {
-        btn.classList.add('active-chan');
-      } else {
-        btn.classList.remove('active-chan');
+      function loop() {
+        if(!syncRunning) return;
+        analyser.getByteFrequencyData(data);
+        
+        let m = 0;
+        // Map frequencies to 6 channels (Bass to Treble)
+        if(data[2] > 180) m |= 1;   // CH 1 (Sub Bass)
+        if(data[5] > 160) m |= 2;   // CH 2 (Bass)
+        if(data[10] > 150) m |= 4;  // CH 3 (Low Mid)
+        if(data[16] > 140) m |= 8;  // CH 4 (Mid)
+        if(data[24] > 130) m |= 16; // CH 5 (High Mid)
+        if(data[35] > 120) m |= 32; // CH 6 (Treble)
+        
+        sendDirectMask(m);
+        setTimeout(() => requestAnimationFrame(loop), 50); 
       }
-    }
-    
-    document.getElementById('speed-label').innerText = data.s;
-    document.getElementById('speedSlider').value = data.s;
-    document.getElementById('status-indicator').innerText = "Connected - Mode: " + data.m.toUpperCase();
+      loop();
+    } catch(e) { alert("Mic access denied!"); syncRunning = false; }
   }
 
-  function toggleChannel(i) {
-    let newState = states[i] === 1 ? 0 : 1;
-    sendCommand(`S,${i},${newState}`);
-  }
+  // --- 2. AMBILIGHT SCREEN SYNC (PC ONLY) FOR 6-CH ---
+  async function startAmbilight() {
+    await sendCmd('M,direct'); 
+    syncRunning = true;
+    try {
+      let stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      let video = document.getElementById('screenVideo');
+      video.srcObject = stream;
+      
+      let canvas = document.createElement('canvas');
+      let ctx = canvas.getContext('2d');
+      canvas.width = 6; canvas.height = 1; // 6 zones for 6 channels
 
-  initUI();
+      function loop() {
+        if(!syncRunning) return;
+        ctx.drawImage(video, 0, 0, 6, 1);
+        let img = ctx.getImageData(0, 0, 6, 1).data;
+        let m = 0;
+        
+        for(let i=0; i<6; i++) {
+          let bright = (img[i*4] + img[i*4+1] + img[i*4+2]) / 3;
+          if(bright > 100) m |= (1 << i);
+        }
+        sendDirectMask(m);
+        setTimeout(() => requestAnimationFrame(loop), 100);
+      }
+      video.onplay = loop;
+    } catch(e) { alert("Screen access denied/Not supported."); syncRunning = false; }
+  }
 </script>
 </body>
 </html>
