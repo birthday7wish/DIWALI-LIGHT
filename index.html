@@ -78,6 +78,95 @@
     <video id="screenVideo" style="display:none;" autoplay></video>
   </div>
 </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate 6-CH Chaser</title>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --primary: #3b82f6; --accent: #10b981; --text: #f8fafc; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+  .container { max-width: 600px; width: 100%; }
+  .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom:10px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom:15px; }
+  button { padding: 12px; border: none; border-radius: 8px; background: #334155; color: white; cursor: pointer; font-weight: 600; width: 100%; font-size:13px; }
+  button:active { transform: scale(0.96); }
+  .btn-blue { background: var(--primary); font-size:15px; }
+  .btn-green { background: var(--accent); }
+  .btn-red { background: #ef4444; }
+  .btn-purple { background: #8b5cf6; }
+  .btn-yellow { background: #eab308; color: #000; font-size:15px; }
+  input[type="range"] { width: 100%; accent-color: var(--primary); margin-top:5px; margin-bottom:10px; }
+  label { font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="card" style="text-align: center;">
+    <h2>⚡ PRO CHASER (6-CH)</h2>
+    <button class="btn-blue" id="connectBtn" onclick="connectBLE()">PAIR BLUETOOTH</button>
+  </div>
+
+  <!-- Manual Control & Sleep Timer -->
+  <div class="card">
+    <div class="grid-2">
+      <button class="btn-green" onclick="sendCmd('A,1')">ALL ON</button>
+      <button class="btn-red" onclick="sendCmd('A,0')">ALL OFF</button>
+    </div>
+    <div class="grid-3" style="margin-top: 10px;">
+      <button onclick="sendCmd('S,0,1')">CH 1</button>
+      <button onclick="sendCmd('S,1,1')">CH 2</button>
+      <button onclick="sendCmd('S,2,1')">CH 3</button>
+      <button onclick="sendCmd('S,3,1')">CH 4</button>
+      <button onclick="sendCmd('S,4,1')">CH 5</button>
+      <button onclick="sendCmd('S,5,1')">CH 6</button>
+    </div>
+    <div class="grid-2">
+      <button onclick="sendCmd('T,900')">⏱ Sleep 15m</button>
+      <button onclick="sendCmd('T,0')">⏱ Cancel Timer</button>
+    </div>
+  </div>
+
+  <!-- Automation & FX Engine -->
+  <div class="card">
+    <button class="btn-purple" onclick="sendCmd('D,1')" style="margin-bottom:15px;">🎧 AUTO-DJ (Auto Playlist)</button>
+    
+    <label>Manual Animation Mode</label>
+    <div class="grid-4" style="margin-top:5px;">
+      <button onclick="sendCmd('D,0'); sendCmd('M,forward')">Forward</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,reverse')">Reverse</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,alternate')">Alternate</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,pair')">Pair</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,bounce')">Bounce</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,fill')">Fill</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,random')">Random</button>
+      <button onclick="sendCmd('D,0'); sendCmd('M,sparkle')">Sparkle</button>
+    </div>
+    
+    <label>Speed (BPM / Chase Delay)</label>
+    <div style="display:flex; gap:10px;">
+      <input type="range" min="30" max="1500" value="700" onchange="sendCmd('V,'+this.value)">
+      <button class="btn-yellow" style="width:90px; padding:10px;" onclick="tapBeat()">TAP</button>
+    </div>
+
+    <label>Pulse Width (Strobe Effect)</label>
+    <input type="range" min="5" max="100" value="100" onchange="sendCmd('P,'+this.value)">
+  </div>
+
+  <!-- Advanced External Sync -->
+  <div class="card">
+    <label>Browser Sync FX (Direct Mode)</label>
+    <div class="grid-2" style="margin-top: 5px;">
+      <button onclick="startMusicSync()">🎵 Mic Sync</button>
+      <button onclick="startAmbilight()">🖥 Screen Sync</button>
+    </div>
+    <video id="screenVideo" style="display:none;" autoplay></video>
+  </div>
+</div>
 
 <script>
   let bleChar;
@@ -121,7 +210,7 @@
     bleChar.writeValue(new TextEncoder().encode('C,' + mask));
   }
 
-  // --- 1. MUSIC SYNC (BROWSER MIC) FOR 6-CH ---
+  // --- MUSIC SYNC FOR 6-CH ---
   async function startMusicSync() {
     await sendCmd('M,direct'); 
     syncRunning = true;
@@ -139,13 +228,12 @@
         analyser.getByteFrequencyData(data);
         
         let m = 0;
-        // Map frequencies to 6 channels (Bass to Treble)
-        if(data[2] > 180) m |= 1;   // CH 1 (Sub Bass)
-        if(data[5] > 160) m |= 2;   // CH 2 (Bass)
-        if(data[10] > 150) m |= 4;  // CH 3 (Low Mid)
-        if(data[16] > 140) m |= 8;  // CH 4 (Mid)
-        if(data[24] > 130) m |= 16; // CH 5 (High Mid)
-        if(data[35] > 120) m |= 32; // CH 6 (Treble)
+        if(data[2] > 180) m |= 1;   // CH 1 
+        if(data[5] > 160) m |= 2;   // CH 2 
+        if(data[10] > 150) m |= 4;  // CH 3 
+        if(data[16] > 140) m |= 8;  // CH 4 
+        if(data[24] > 130) m |= 16; // CH 5 
+        if(data[35] > 120) m |= 32; // CH 6 
         
         sendDirectMask(m);
         setTimeout(() => requestAnimationFrame(loop), 50); 
@@ -154,7 +242,7 @@
     } catch(e) { alert("Mic access denied!"); syncRunning = false; }
   }
 
-  // --- 2. AMBILIGHT SCREEN SYNC (PC ONLY) FOR 6-CH ---
+  // --- AMBILIGHT FOR 6-CH ---
   async function startAmbilight() {
     await sendCmd('M,direct'); 
     syncRunning = true;
@@ -165,7 +253,7 @@
       
       let canvas = document.createElement('canvas');
       let ctx = canvas.getContext('2d');
-      canvas.width = 6; canvas.height = 1; // 6 zones for 6 channels
+      canvas.width = 6; canvas.height = 1;
 
       function loop() {
         if(!syncRunning) return;
@@ -181,8 +269,10 @@
         setTimeout(() => requestAnimationFrame(loop), 100);
       }
       video.onplay = loop;
-    } catch(e) { alert("Screen access denied/Not supported."); syncRunning = false; }
+    } catch(e) { alert("Screen access denied."); syncRunning = false; }
   }
 </script>
+</body>
+</html>
 </body>
 </html>
